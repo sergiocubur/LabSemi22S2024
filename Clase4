@@ -1,0 +1,62 @@
+public void Main()
+		{
+            // TODO: Add your code here
+            try {
+                string Delimitador  = Dts.Variables["User::Delimitador"].Value.ToString();
+                string Extension    = Dts.Variables["User::Extension"].Value.ToString();
+                string FolderOrigen = Dts.Variables["User::FolderOrigen"].Value.ToString();
+                string TablaDestino = Dts.Variables["User::TablaDestino"].Value.ToString();
+
+                string[] fileentries = Directory.GetFiles(FolderOrigen, "*" + Extension);
+
+                foreach (string filename in fileentries) {
+                    SqlConnection con = new SqlConnection();
+                    con = (SqlConnection)(Dts.Connections[""].AcquireConnection(Dts.Transaction) as SqlConnection);
+
+                    int contador = 0;
+
+                    string linea;
+
+                    System.IO.StreamReader SourceFile = new System.IO.StreamReader(filename);
+
+                    while ((linea = SourceFile.ReadLine()) != null) {
+                        if (contador > 0) {
+                            string[] campos = linea.Split(Delimitador.ToCharArray()[0]);
+
+                            string ruta = "Data Source=(localdb)\\localScubur;Initial Catalog=DBSergio;Integrated Security=True";
+
+                            string query = "INSERT INTO " + TablaDestino + "(Carnet, Nombre, Nota) VALUES(@Carnet, @Nombre, @Nota)";
+
+                            using (SqlConnection connection = con) {
+                                using (SqlCommand myCommand = new SqlCommand(query, connection)) {
+
+                                    myCommand.Parameters.AddWithValue("@Carnet", campos[0]);
+                                    myCommand.Parameters.AddWithValue("@Nombre", campos[1]);
+                                    myCommand.Parameters.AddWithValue("@Nota", campos[2]);
+
+                                    myCommand.CommandType = CommandType.Text;
+                                    connection.Open();
+                                    myCommand.ExecuteNonQuery();
+                                    connection.Close();
+
+                                }
+                            }
+                        }
+                        contador++;
+                    }
+                    SourceFile.Close();
+
+                    Dts.TaskResult = (int)ScriptResults.Success;
+                }
+
+            }
+            catch (Exception ex) {
+
+                using (StreamWriter sw = File.CreateText(Dts.Variables["User::FolderError"].Value.ToString() + "\\" + "ErrorLog.log")) {
+                    sw.WriteLine(ex.ToString());
+                    Dts.TaskResult = (int)ScriptResults.Failure;
+                }
+            
+            }
+
+		}
